@@ -1,22 +1,22 @@
 THREADS=16
-
+ 
 # Input
 PROTEIN_CATALOG="protein_catalog.fasta"
-
+ 
 # UniProt TrEMBL settings
 TREMBL_DB="uniprot_trembl.dmnd"
 TREMBL_OUTPUT="trembl_output"
 TREMBL_RESULTS="${TREMBL_OUTPUT}/gene_catalog_uniprot_trembl_annotation.tsv"
-
+ 
 # DIAMOND settings
 DIAMOND_EVALUE="1e-5"
 DIAMOND_MAX_TARGETS=1
 DIAMOND_OUTFMT="6 qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore stitle"
-
-
+ 
+ 
 # ---------------- UniProt TrEMBL annotation (DIAMOND) ----------------
 mkdir -p "$TREMBL_OUTPUT"
-
+ 
 diamond blastp \
     -q "$PROTEIN_CATALOG" \
     -d "$TREMBL_DB" \
