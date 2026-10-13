@@ -1,0 +1,25 @@
+THREADS=16
+ 
+BINS_DIR="final_bins"
+CHECKM2_REPORT="checkm2_final_bins/quality_report.tsv"
+GENOME_INFO="genome_info.csv"
+OUTPUT_DIR="final_bins_dereplicated"
+ 
+MIN_COMPLETENESS=70
+MAX_CONTAMINATION=10
+ANI_THRESHOLD=0.95
+ 
+ 
+# ---------------- Convert CheckM2 report to dRep genomeInfo format ----------------
+awk -F'\t' 'BEGIN{OFS=","; print "genome,completeness,contamination"}
+            NR>1 {print $1".fa",$2,$3}' "$CHECKM2_REPORT" > "$GENOME_INFO"
+ 
+ 
+# ---------------- Genome dereplication (dRep) ----------------
+dRep dereplicate "$OUTPUT_DIR" \
+    -g "$BINS_DIR"/*.fa \
+    -p "$THREADS" \
+    --genomeInfo "$GENOME_INFO" \
+    -comp "$MIN_COMPLETENESS" \
+    -con "$MAX_CONTAMINATION" \
+    -sa "$ANI_THRESHOLD"
