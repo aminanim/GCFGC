@@ -1,0 +1,22 @@
+GENOME_DIR="dereplicated_genomes"
+ 
+TRNA_OUTPUT_DIR="trna_annotation"
+RRNA_OUTPUT_DIR="rrna_annotation"
+ 
+ 
+# ---------------- tRNA annotation (tRNAscan-SE) ----------------
+mkdir -p "$TRNA_OUTPUT_DIR"
+ 
+for fasta in "$GENOME_DIR"/*.fa; do
+    sample=$(basename "$fasta" .fa)
+    tRNAscan-SE -B -o "${TRNA_OUTPUT_DIR}/${sample}_trna.txt" "$fasta"
+done
+ 
+ 
+# ---------------- rRNA annotation (barrnap) ----------------
+mkdir -p "$RRNA_OUTPUT_DIR"
+ 
+for fasta in "$GENOME_DIR"/*.fa; do
+    sample=$(basename "$fasta" .fa)
+    barrnap --kingdom bac "$fasta" > "${RRNA_OUTPUT_DIR}/${sample}_bac_rrna.gff"
+done
