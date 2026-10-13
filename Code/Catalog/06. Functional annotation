@@ -1,34 +1,34 @@
 THREADS=16
-
+ 
 # Input
 PROTEIN_CATALOG="protein_catalog.fasta"
-
+ 
 # RGI / CARD settings
 RGI_OUTPUT_DIR="arg_card_annotation"
 RGI_OUTPUT_PREFIX="${RGI_OUTPUT_DIR}/rgi_output"
 RGI_ALIGNMENT_TOOL="DIAMOND"
-
+ 
 # EggNOG-mapper settings
 EMAPPER_OUTPUT_DIR="emapper_annotation"
 EMAPPER_OUTPUT_PREFIX="${EMAPPER_OUTPUT_DIR}/emapper_output"
-EMAPPER_DB_DIR="/10Gdata/ezy/00_Data/01_DataBase/eggnogDatabase/"
+EMAPPER_DB_DIR="eggnog_database"
 EMAPPER_SENS="ultra-sensitive"
-
+ 
 # dbCAN settings
 DBCAN_OUTPUT_DIR="dbcan_output"
-DBCAN_DB_DIR="/10Gdata/amina/mag_pipeline/dbCAN_DB"
+DBCAN_DB_DIR="dbcan_database"
 DBCAN_METHODS="diamond,hmm"
-
+ 
 # VFDB settings
-VFDB_DB="/10Gdata/amina/mag_pipeline/VFDB/VFDB_full_pro_diamond"
+VFDB_DB="vfdb_database"
 VFDB_OUTPUT_DIR="vfdb_output"
 VFDB_OUTPUT="${VFDB_OUTPUT_DIR}/vfdb_results.tsv"
-
+ 
 # BacMet settings
-BACMET_DB="bacmet_db"
+BACMET_DB="bacmet_database"
 BACMET_OUTPUT_DIR="bacmet_output"
 BACMET_OUTPUT="${BACMET_OUTPUT_DIR}/bacmet_results.tsv"
-
+ 
 # Shared DIAMOND blastp settings
 DIAMOND_EVALUE="1e-5"
 DIAMOND_ID=70
@@ -36,11 +36,11 @@ DIAMOND_QUERY_COV=70
 DIAMOND_SUBJECT_COV=70
 DIAMOND_MAX_TARGETS=1
 DIAMOND_OUTFMT="6 qseqid sseqid pident length qcovhsp scovhsp evalue bitscore"
-
-
+ 
+ 
 # ---------------- ARG annotation (RGI / CARD) ----------------
 mkdir -p "$RGI_OUTPUT_DIR"
-
+ 
 rgi main \
     --input_sequence "$PROTEIN_CATALOG" \
     --output_file "$RGI_OUTPUT_PREFIX" \
@@ -48,23 +48,24 @@ rgi main \
     --input_type protein \
     --num_threads "$THREADS" \
     --clean
-
-
+ 
+ 
 # ---------------- Functional annotation (EggNOG-mapper) ----------------
 mkdir -p "$EMAPPER_OUTPUT_DIR"
-
+ 
 emapper.py \
     -i "$PROTEIN_CATALOG" \
     --itype proteins \
     --cpu "$THREADS" \
     -o "$EMAPPER_OUTPUT_PREFIX" \
     --data_dir "$EMAPPER_DB_DIR" \
-    --sensmode "$EMAPPER_SENS" 
-
-
+    --sensmode "$EMAPPER_SENS" \
+    --override
+ 
+ 
 # ---------------- CAZyme annotation (dbCAN) ----------------
 mkdir -p "$DBCAN_OUTPUT_DIR"
-
+ 
 run_dbcan CAZyme_annotation \
     --input_raw_data "$PROTEIN_CATALOG" \
     --mode protein \
@@ -73,11 +74,11 @@ run_dbcan CAZyme_annotation \
     --threads "$THREADS" \
     --db_dir "$DBCAN_DB_DIR" \
     --output_dir "$DBCAN_OUTPUT_DIR"
-
-
+ 
+ 
 # ---------------- Virulence factor annotation (VFDB) ----------------
 mkdir -p "$VFDB_OUTPUT_DIR"
-
+ 
 diamond blastp \
     -q "$PROTEIN_CATALOG" \
     -d "$VFDB_DB" \
@@ -90,11 +91,11 @@ diamond blastp \
     --max-target-seqs "$DIAMOND_MAX_TARGETS" \
     --very-sensitive \
     -p "$THREADS"
-
-
+ 
+ 
 # ---------------- Metal resistance annotation (BacMet) ----------------
 mkdir -p "$BACMET_OUTPUT_DIR"
-
+ 
 diamond blastp \
     -q "$PROTEIN_CATALOG" \
     -d "$BACMET_DB" \
