@@ -1,21 +1,21 @@
 THREADS=16
-
+ 
 # Input
-GENE_CATALOG="hanwoo_nonredun_gene_catalog.fasta"
-ONT_READS="/10Gdata/amina/metagenome_data/nanopore_110_metagenomes/Minion_promethion_merged_without_host_for_rel_abun/minion_promethion_without_host_merged.fastq.gz"
-
+GENE_CATALOG="gene_catalog.fasta"
+ONT_READS="ont_reads.fastq.gz"
+ 
 # Output
-OUT_DIR="protein_abundance_quantification"
-OUT_PREFIX="${OUT_DIR}/hanwoo_geneCatalog_vs_ONTmerged_nohost"
-
+OUT_DIR="gene_catalog_abundance"
+OUT_PREFIX="${OUT_DIR}/gene_catalog_vs_ont_reads"
+ 
 # CoverM settings
 MAPPER="minimap2-ont"
 METRICS="tpm mean"
-
-
+ 
+ 
 # ---------------- Gene catalog abundance quantification (CoverM) ----------------
 mkdir -p "$OUT_DIR"
-
+ 
 coverm contig \
     --reference "$GENE_CATALOG" \
     --single "$ONT_READS" \
