@@ -1,7 +1,7 @@
 THREADS=16
 
 # Input
-PROTEIN_CATALOG="/10Gdata/amina/metagenome_data/nanopore_110_metagenomes/1500_assembled_contigs/renamed/mmseqs2_derep/anvio/MERGED_ONT/gene_catalog/contigs_reformatted_prodigal/hanwoo_nonredun_protein_catalog_clean.fasta"
+PROTEIN_CATALOG="protein_catalog.fasta"
 
 # UniProt TrEMBL settings
 TREMBL_DB="uniprot_trembl.dmnd"
