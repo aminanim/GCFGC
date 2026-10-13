@@ -1,0 +1,54 @@
+THREADS=16
+
+# Input
+PROTEIN_CATALOG="nonredun_protein_catalog_clean.fasta"
+RUMIREF_INPUT="rumiref100.faa"
+LI2020_INPUT="Li2020.faa"
+RGMDB_INPUT="RGMGC.geneSet.faa"
+
+# Tagged output files
+PROTEIN_CATALOG_TAGGED="protein_catalog_tagged.faa"
+RUMIREF_TAGGED="rumiref_tagged.faa"
+LI2020_TAGGED="li2020_tagged.faa"
+RGMDB_TAGGED="rgmdb_tagged.faa"
+
+# Tags / prefixes
+PROTEIN_CATALOG_TAG="protein_catalog"
+RUMIREF_TAG="rumiref"
+LI2020_TAG="li2020"
+RGMDB_TAG="rgmdb"
+
+# Combined
+COMBINED="combined.faa"
+
+# MMseqs2 clustering
+MMSEQS_OUTPUT="combined_clustered"
+MMSEQS_TMP="tmp_combined"
+MIN_SEQ_ID=0.9
+COV=0.8
+COV_MODE=1
+KMER_PER_SEQ=80
+
+
+# ---------------- Tag reference databases (sed) ----------------
+sed '/^>/ s/^>/>'"$PROTEIN_CATALOG_TAG"'|/' "$PROTEIN_CATALOG" > "$PROTEIN_CATALOG_TAGGED"
+sed '/^>/ s/^>/>'"$RUMIREF_TAG"'|/' "$RUMIREF_INPUT" > "$RUMIREF_TAGGED"
+sed '/^>/ s/^>/>'"$LI2020_TAG"'|/' "$LI2020_INPUT" > "$LI2020_TAGGED"
+sed '/^>/ s/^>/>'"$RGMDB_TAG"'|/' "$RGMDB_INPUT" > "$RGMDB_TAGGED"
+
+
+# ---------------- Combine all tagged files ----------------
+cat "$PROTEIN_CATALOG_TAGGED" "$RUMIREF_TAGGED" "$LI2020_TAGGED" "$RGMDB_TAGGED" > "$COMBINED"
+grep -c ">" "$COMBINED"
+
+
+# ---------------- Cluster combined catalog (MMseqs2) ----------------
+mmseqs easy-linclust \
+    "$COMBINED" \
+    "$MMSEQS_OUTPUT" \
+    "$MMSEQS_TMP" \
+    --cov-mode "$COV_MODE" \
+    -c "$COV" \
+    --kmer-per-seq "$KMER_PER_SEQ" \
+    --min-seq-id "$MIN_SEQ_ID" \
+    --threads "$THREADS"
