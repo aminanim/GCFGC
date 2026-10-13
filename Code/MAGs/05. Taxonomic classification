@@ -1,0 +1,12 @@
+THREADS=16
+GENOME_DIR="dereplicated_genomes"
+GENOME_EXT="fa"
+OUTPUT_DIR="gtdbtk_output"
+ 
+ 
+# ---------------- Taxonomic classification (GTDB-Tk) ----------------
+gtdbtk classify_wf \
+    --genome_dir "$GENOME_DIR" \
+    --out_dir "$OUTPUT_DIR" \
+    --extension "$GENOME_EXT" \
+    --cpus "$THREADS"
