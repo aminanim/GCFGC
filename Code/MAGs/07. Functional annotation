@@ -12,9 +12,6 @@ BACMET_OUTPUT_DIR="bacmet_output"
 VFDB_DB="vfdb_database"
 VFDB_OUTPUT_DIR="vfdb_output"
  
-BACMET_MIN_ID=40
-VFDB_MIN_ID=60
- 
  
 # ---------------- Gene prediction (Prodigal, per genome) ----------------
 mkdir -p "$PRODIGAL_OUTPUT_DIR"
@@ -46,7 +43,7 @@ for genome in "$GENOME_DIR"/*.fa; do
 done
  
  
-# ---------------- CAZyme annotation (dbCAN) ----------------
+# ---------------- CAZyme annotation (dbCAN, per genome) ----------------
 mkdir -p "$DBCAN_OUTPUT_DIR"
  
 for genome in "$GENOME_DIR"/*.fa; do
@@ -63,7 +60,7 @@ for genome in "$GENOME_DIR"/*.fa; do
 done
  
  
-# ---------------- EggNOG-mapper annotation ----------------
+# ---------------- Functional annotation (EggNOG-mapper, per genome) ----------------
 mkdir -p "$EMAPPER_OUTPUT_DIR"
  
 for mag_dir in "$PRODIGAL_OUTPUT_DIR"/*/; do
@@ -83,12 +80,11 @@ for mag_dir in "$PRODIGAL_OUTPUT_DIR"/*/; do
 done
  
  
-# ---------------- DIAMOND annotation (BacMet / VFDB) ----------------
+# ---------------- Shared DIAMOND annotation helper (BacMet / VFDB / mobileOG) ----------------
 diamond_annotate() {
     local database=$1
-    local min_identity=$2
-    local output_dir=$3
-    local output_suffix=$4
+    local output_dir=$2
+    local output_suffix=$3
  
     mkdir -p "$output_dir"
  
@@ -102,9 +98,9 @@ diamond_annotate() {
             -q "$faa" \
             -d "$database" \
             -o "${mag_outdir}/${name}_${output_suffix}.tsv" \
-            --id "$min_identity" \
-            --query-cover 70 \
-            --subject-cover 70 \
+            --id 80 \
+            --query-cover 80 \
+            --subject-cover 80 \
             -e 1e-5 \
             --max-target-seqs 1 \
             --very-sensitive \
@@ -115,9 +111,9 @@ diamond_annotate() {
 }
  
  
-# ---------------- Metal resistance annotation (BacMet) ----------------
-diamond_annotate "$BACMET_DB" "$BACMET_MIN_ID" "$BACMET_OUTPUT_DIR" "bacmet"
+# ---------------- Metal resistance annotation (BacMet, per genome) ----------------
+diamond_annotate "$BACMET_DB" "$BACMET_OUTPUT_DIR" "bacmet"
  
  
-# ---------------- Virulence factor annotation (VFDB) ----------------
-diamond_annotate "$VFDB_DB" "$VFDB_MIN_ID" "$VFDB_OUTPUT_DIR" "vfdb"
+# ---------------- Virulence factor annotation (VFDB, per genome) ----------------
+diamond_annotate "$VFDB_DB" "$VFDB_OUTPUT_DIR" "vfdb"
