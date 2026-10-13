@@ -1,0 +1,73 @@
+THREADS=16
+ 
+ASSEMBLY="contigs.fasta"
+PROJECT_NAME="PROJECT_NAME"
+BAM_DIR="bam_files"
+CONTIGS2BIN="refined.refined.contig_to_bin.out"
+ 
+OUTPUT_DIR="anvio"
+CONTIGS_DB="${OUTPUT_DIR}/CONTIGS.db"
+PROFILES_DIR="${OUTPUT_DIR}/profiles"
+MERGED_DIR="${OUTPUT_DIR}/MERGED"
+COLLECTION_NAME="MAGSCOT"
+COLLECTION_FILE="magscot_collection.txt"
+SUMMARY_DIR="refined_bins_summary"
+ 
+# Bin names refined by hand in interactive anvi-refine sessions
+BINS_TO_REFINE=("BIN_NAME_1" "BIN_NAME_2" "BIN_NAME_3")
+ 
+ 
+# ---------------- Build contigs database ----------------
+anvi-gen-contigs-database -f "$ASSEMBLY" \
+    -o "$CONTIGS_DB" \
+    -n "$PROJECT_NAME" \
+    --num-threads "$THREADS"
+ 
+ 
+# ---------------- Profile each sample's BAM ----------------
+mkdir -p "$PROFILES_DIR"
+ 
+for bam in "$BAM_DIR"/*.bam; do
+    sample=$(basename "$bam" .bam | tr -c 'a-zA-Z0-9_' '_')
+    anvi-profile -i "$bam" \
+        -c "$CONTIGS_DB" \
+        -o "${PROFILES_DIR}/${sample}" \
+        -S "$sample" \
+        -T "$THREADS"
+done
+ 
+ 
+# ---------------- Annotate HMM hits ----------------
+anvi-run-hmms -c "$CONTIGS_DB" -T "$THREADS"
+ 
+ 
+# ---------------- Merge sample profiles ----------------
+anvi-merge "$PROFILES_DIR"/*/PROFILE.db \
+    -o "$MERGED_DIR" \
+    -c "$CONTIGS_DB"
+ 
+ 
+# ---------------- Import MAGScoT bins as a collection ----------------
+awk -F'\t' 'NR>1 {sub(/^.*\//, "", $1); print $2"\t"$1}' "$CONTIGS2BIN" > "$COLLECTION_FILE"
+ 
+anvi-import-collection -c "$CONTIGS_DB" \
+    -p "${MERGED_DIR}/PROFILE.db" \
+    -C "$COLLECTION_NAME" \
+    --contigs-mode \
+    "$COLLECTION_FILE"
+ 
+ 
+# ---------------- Manually refine bins (interactive) ----------------
+for BIN_TO_REFINE in "${BINS_TO_REFINE[@]}"; do
+    anvi-refine -c "$CONTIGS_DB" \
+        -p "${MERGED_DIR}/PROFILE.db" \
+        -C "$COLLECTION_NAME" \
+        -b "$BIN_TO_REFINE"
+done
+ 
+ 
+# ---------------- Summarize refined bins ----------------
+anvi-summarize -c "$CONTIGS_DB" \
+    -p "${MERGED_DIR}/PROFILE.db" \
+    -C "$COLLECTION_NAME" \
+    -o "$SUMMARY_DIR"
