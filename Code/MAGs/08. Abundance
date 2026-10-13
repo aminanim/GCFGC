@@ -1,0 +1,20 @@
+THREADS=8
+MAG_DIR="dereplicated_genomes"
+ONT_READS="ont_reads.fastq.gz"
+OUT_DIR="mag_abundance_quantification"
+OUT_PREFIX="${OUT_DIR}/mags_vs_ont_reads"
+ 
+ 
+# ---------------- MAG abundance quantification (CoverM) ----------------
+export TMPDIR="${PWD}/tmp_coverm"
+mkdir -p "$OUT_DIR" "$TMPDIR"
+ 
+coverm genome \
+    --genome-fasta-directory "$MAG_DIR" \
+    -x fa \
+    --single "$ONT_READS" \
+    -p minimap2-ont \
+    -m relative_abundance tpm mean \
+    --min-covered-fraction 10 \
+    --threads "$THREADS" \
+    --output-file "${OUT_PREFIX}_abundance.tsv" 
