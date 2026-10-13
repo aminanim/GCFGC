@@ -1,0 +1,88 @@
+THREADS=16
+ASSEMBLY="contigs.fasta"
+BAM_DIR="bam_files"
+MIN_CONTIG_LEN=1500
+CHUNK_SIZE=10000
+MAGSCOT_DIR="magscot"
+ 
+ 
+# ---------------- 1. Binning (SemiBin2) ----------------
+SemiBin2 single_easy_bin --sequencing-type long_read -i "$ASSEMBLY" -b "$BAM_DIR"/*.bam \
+    -o semibin2_output --threads "$THREADS"
+ 
+ 
+# ---------------- 2. Binning (MetaBAT2) ----------------
+mkdir -p metabat2_output
+jgi_summarize_bam_contig_depths --outputDepth metabat2_output/depth.txt "$BAM_DIR"/*.bam
+metabat2 -i "$ASSEMBLY" -a metabat2_output/depth.txt -o metabat2_output/bin -m "$MIN_CONTIG_LEN" -t "$THREADS"
+ 
+ 
+# ---------------- 3. Binning (CONCOCT) ----------------
+mkdir -p concoct_output/bins
+cut_up_fasta.py "$ASSEMBLY" -c "$CHUNK_SIZE" -o 0 --merge_last \
+    -b concoct_output/contigs_cut.bed > concoct_output/contigs_cut.fasta
+concoct_coverage_table.py concoct_output/contigs_cut.bed "$BAM_DIR"/*.bam > concoct_output/coverage_table.tsv
+concoct --composition_file concoct_output/contigs_cut.fasta --coverage_file concoct_output/coverage_table.tsv \
+    -b concoct_output/ -t "$THREADS"
+merge_cutup_clustering.py concoct_output/clustering_gt1000.csv > concoct_output/clustering_merged.csv
+extract_fasta_bins.py "$ASSEMBLY" concoct_output/clustering_merged.csv --output_path concoct_output/bins
+ 
+ 
+# ---------------- 4. Contig-to-bin tables ----------------
+make_contig2bin() {
+    local bin_dir=$1 pattern=$2 ext=$3 out_file=$4
+    for f in "$bin_dir"/$pattern; do
+        [ -e "$f" ] || continue
+        local bin; bin=$(basename "$f" "$ext")
+        if [[ "$f" == *.gz ]]; then
+            zcat "$f" | grep ">" | sed 's/>//' | awk -v b="$bin" '{print $1"\t"b}'
+        else
+            grep ">" "$f" | sed 's/>//' | awk -v b="$bin" '{print $1"\t"b}'
+        fi
+    done > "$out_file"
+}
+ 
+mkdir -p contigs2bin_tables
+make_contig2bin semibin2_output/output_bins "*.fa.gz" ".fa.gz" contigs2bin_tables/semibin2.contigs2bin.tsv
+make_contig2bin metabat2_output "bin.*.fa" ".fa" contigs2bin_tables/metabat2.contigs2bin.tsv
+make_contig2bin concoct_output/bins "*.fa" ".fa" contigs2bin_tables/concoct.contigs2bin.tsv
+ 
+ 
+# ---------------- 5. Bin refinement (MAGScoT) ----------------
+mkdir -p bin_refinement_magscot/prodigal bin_refinement_magscot/hmmsearch
+ 
+awk -v OFS='\t' '{print "SEMIBIN__"$2, $1, "semibin2"}' contigs2bin_tables/semibin2.contigs2bin.tsv  >  bin_refinement_magscot/combined_contigs2bin.tsv
+awk -v OFS='\t' '{print $2, $1, "metabat2"}'             contigs2bin_tables/metabat2.contigs2bin.tsv >> bin_refinement_magscot/combined_contigs2bin.tsv
+awk -v OFS='\t' '{print "CONCOCT__"$2, $1, "concoct"}'  contigs2bin_tables/concoct.contigs2bin.tsv  >> bin_refinement_magscot/combined_contigs2bin.tsv
+ 
+prodigal -i "$ASSEMBLY" -a bin_refinement_magscot/prodigal/proteins.faa -p meta
+ 
+run_hmmsearch() {
+    local hmm_file=$1 cutoff_flag=$2 out_name=$3
+    hmmsearch --cpu "$THREADS" "$cutoff_flag" --tblout "bin_refinement_magscot/hmmsearch/${out_name}.tblout" \
+        "$hmm_file" bin_refinement_magscot/prodigal/proteins.faa > /dev/null
+}
+run_hmmsearch "${MAGSCOT_DIR}/hmm/gtdbtk_rel207_Pfam-A.hmm"  --cut_ga pfam
+run_hmmsearch "${MAGSCOT_DIR}/hmm/gtdbtk_rel207_tigrfam.hmm" --cut_tc tigrfam
+ 
+awk -v OFS='\t' '!/^#/{print $1, $3, $5}' bin_refinement_magscot/hmmsearch/pfam.tblout    >  bin_refinement_magscot/hmm_markers.tsv
+awk -v OFS='\t' '!/^#/{print $1, $3, $5}' bin_refinement_magscot/hmmsearch/tigrfam.tblout >> bin_refinement_magscot/hmm_markers.tsv
+ 
+python3 "${MAGSCOT_DIR}/MAGScoT.py" -i bin_refinement_magscot/combined_contigs2bin.tsv \
+    --hmm bin_refinement_magscot/hmm_markers.tsv -p default --profile_dir "${MAGSCOT_DIR}/profiles" \
+    -o bin_refinement_magscot/magscot_refined
+ 
+ 
+# ---------------- 6. Extract refined MAGScoT bins ----------------
+BIN_DIR="bin_refinement_magscot/bins"
+CONTIG2BIN="bin_refinement_magscot/magscot_refined.refined.contig_to_bin.out"
+ 
+mkdir -p "$BIN_DIR"
+find "$BIN_DIR" -maxdepth 1 \( -name "*.fa" -o -name "*.contigs.txt" \) -delete
+ 
+tail -n +2 "$CONTIG2BIN" | cut -f1 | sort -u | while read -r bin; do
+    safe_name="${bin//\//_}"
+    awk -v b="$bin" -F'\t' '$1==b{print $2}' "$CONTIG2BIN" > "${BIN_DIR}/${safe_name}.contigs.txt"
+    seqkit grep -f "${BIN_DIR}/${safe_name}.contigs.txt" "$ASSEMBLY" > "${BIN_DIR}/${safe_name}.fa"
+    rm "${BIN_DIR}/${safe_name}.contigs.txt"
+done
