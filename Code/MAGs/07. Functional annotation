@@ -1,0 +1,123 @@
+THREADS=16
+GENOME_DIR="dereplicated_genomes"
+ 
+PRODIGAL_OUTPUT_DIR="prodigal_output"
+RGI_OUTPUT_DIR="rgi_results"
+DBCAN_OUTPUT_DIR="dbcan_output"
+DBCAN_DB_DIR="dbcan_database"
+EMAPPER_OUTPUT_DIR="emapper_annotation"
+EMAPPER_DB_DIR="eggnog_database"
+BACMET_DB="bacmet_database"
+BACMET_OUTPUT_DIR="bacmet_output"
+VFDB_DB="vfdb_database"
+VFDB_OUTPUT_DIR="vfdb_output"
+ 
+BACMET_MIN_ID=40
+VFDB_MIN_ID=60
+ 
+ 
+# ---------------- Gene prediction (Prodigal, per genome) ----------------
+mkdir -p "$PRODIGAL_OUTPUT_DIR"
+ 
+for genome in "$GENOME_DIR"/*.fa; do
+    name=$(basename "$genome" .fa)
+    mag_outdir="${PRODIGAL_OUTPUT_DIR}/${name}"
+    mkdir -p "$mag_outdir"
+ 
+    prodigal -i "$genome" \
+        -a "${mag_outdir}/${name}.faa" \
+        -d "${mag_outdir}/${name}.fna" \
+        -o "${mag_outdir}/${name}.gff" \
+        -f gff -p single -q
+done
+ 
+ 
+# ---------------- ARG annotation (RGI / CARD, per genome) ----------------
+mkdir -p "$RGI_OUTPUT_DIR"
+ 
+for genome in "$GENOME_DIR"/*.fa; do
+    name=$(basename "$genome" .fa)
+    rgi main \
+        --input_sequence "$genome" \
+        --output_file "${RGI_OUTPUT_DIR}/${name}" \
+        --input_type contig \
+        --alignment_tool DIAMOND \
+        --num_threads "$THREADS"
+done
+ 
+ 
+# ---------------- CAZyme annotation (dbCAN) ----------------
+mkdir -p "$DBCAN_OUTPUT_DIR"
+ 
+for genome in "$GENOME_DIR"/*.fa; do
+    name=$(basename "$genome" .fa)
+    mag_outdir="${DBCAN_OUTPUT_DIR}/${name}"
+    mkdir -p "$mag_outdir"
+ 
+    run_dbcan CAZyme_annotation \
+        --input_raw_data "$genome" \
+        --mode prok \
+        --threads "$THREADS" \
+        --output_dir "$mag_outdir" \
+        --db_dir "$DBCAN_DB_DIR"
+done
+ 
+ 
+# ---------------- EggNOG-mapper annotation ----------------
+mkdir -p "$EMAPPER_OUTPUT_DIR"
+ 
+for mag_dir in "$PRODIGAL_OUTPUT_DIR"/*/; do
+    name=$(basename "$mag_dir")
+    faa="${mag_dir}${name}.faa"
+ 
+    emapper.py \
+        -i "$faa" \
+        --itype proteins \
+        -o "$name" \
+        --output_dir "$EMAPPER_OUTPUT_DIR" \
+        --cpu "$THREADS" \
+        -m diamond \
+        --sensmode more-sensitive \
+        --dbmem \
+        --data_dir "$EMAPPER_DB_DIR"
+done
+ 
+ 
+# ---------------- DIAMOND annotation (BacMet / VFDB) ----------------
+diamond_annotate() {
+    local database=$1
+    local min_identity=$2
+    local output_dir=$3
+    local output_suffix=$4
+ 
+    mkdir -p "$output_dir"
+ 
+    for mag_dir in "$PRODIGAL_OUTPUT_DIR"/*/; do
+        name=$(basename "$mag_dir")
+        faa="${mag_dir}${name}.faa"
+        mag_outdir="${output_dir}/${name}"
+        mkdir -p "$mag_outdir"
+ 
+        diamond blastp \
+            -q "$faa" \
+            -d "$database" \
+            -o "${mag_outdir}/${name}_${output_suffix}.tsv" \
+            --id "$min_identity" \
+            --query-cover 70 \
+            --subject-cover 70 \
+            -e 1e-5 \
+            --max-target-seqs 1 \
+            --very-sensitive \
+            --threads "$THREADS" \
+            --outfmt 6 qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore qcovhsp scovhsp \
+            --quiet
+    done
+}
+ 
+ 
+# ---------------- Metal resistance annotation (BacMet) ----------------
+diamond_annotate "$BACMET_DB" "$BACMET_MIN_ID" "$BACMET_OUTPUT_DIR" "bacmet"
+ 
+ 
+# ---------------- Virulence factor annotation (VFDB) ----------------
+diamond_annotate "$VFDB_DB" "$VFDB_MIN_ID" "$VFDB_OUTPUT_DIR" "vfdb"
