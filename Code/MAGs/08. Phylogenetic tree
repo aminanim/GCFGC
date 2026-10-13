@@ -1,0 +1,13 @@
+THREADS=16
+GENOME_DIR="dereplicated_genomes"
+OUTPUT_DIR="gtdbtk_de_novo_annotation"
+ 
+ 
+# ---------------- De novo phylogenetic tree (GTDB-Tk) ----------------
+gtdbtk de_novo_wf \
+    --genome_dir "$GENOME_DIR" \
+    --bacteria \
+    --outgroup_taxon p__Chloroflexota \
+    --out_dir "$OUTPUT_DIR" \
+    --cpus "$THREADS" \
+    --extension fa
