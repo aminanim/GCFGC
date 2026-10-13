@@ -1,0 +1,63 @@
+THREADS=16
+
+# Input
+INPUT_CONTIGS="contigs_reformatted.fasta"
+
+# Prodigal output
+PRODIGAL_OUTPUT_DIR="contigs_reformatted_prodigal"
+PRODIGAL_FAA="$PRODIGAL_OUTPUT_DIR/contigs.prodigal.faa"
+PRODIGAL_FFN="$PRODIGAL_OUTPUT_DIR/contigs.prodigal.ffn"
+PRODIGAL_TMPFILE="$PRODIGAL_OUTPUT_DIR/tmpfile"
+
+# MMseqs2 shared
+MMSEQS_TMP="tmp"
+
+# MMseqs2 — protein clustering (.faa)
+PROTEIN_CLUSTER_PREFIX="$PRODIGAL_OUTPUT_DIR/proteins_nr"
+PROTEIN_MIN_SEQ_ID=0.90
+PROTEIN_COV=0.80
+PROTEIN_SPLIT_MEM="300G"
+
+# MMseqs2 — gene clustering (.ffn)
+GENE_CLUSTER_PREFIX="$PRODIGAL_OUTPUT_DIR/genes_nr"
+GENE_MIN_SEQ_ID=0.95
+GENE_COV=0.90
+
+# Shared MMseqs2 settings
+COV_MODE=1
+CLUSTER_MODE=2
+
+
+# ---------------- Gene prediction (Prodigal) ----------------
+mkdir -p "$PRODIGAL_OUTPUT_DIR"
+
+prodigal -p meta \
+    -i "$INPUT_CONTIGS" \
+    -a "$PRODIGAL_FAA" \
+    -d "$PRODIGAL_FFN" \
+    -o "$PRODIGAL_TMPFILE"
+
+# ---------------- Protein clustering .faa (MMseqs2) ----------------
+mkdir -p "$MMSEQS_TMP"
+
+mmseqs easy-cluster \
+    "$PRODIGAL_FAA" \
+    "$PROTEIN_CLUSTER_PREFIX" \
+    "$MMSEQS_TMP" \
+    --min-seq-id "$PROTEIN_MIN_SEQ_ID" \
+    -c "$PROTEIN_COV" \
+    --cov-mode "$COV_MODE" \
+    --cluster-mode "$CLUSTER_MODE" \
+    --threads "$THREADS" \
+    --split-memory-limit "$PROTEIN_SPLIT_MEM"
+
+# ---------------- Gene clustering .ffn (MMseqs2) ----------------
+mmseqs easy-cluster \
+    "$PRODIGAL_FFN" \
+    "$GENE_CLUSTER_PREFIX" \
+    "$MMSEQS_TMP" \
+    --min-seq-id "$GENE_MIN_SEQ_ID" \
+    -c "$GENE_COV" \
+    --cov-mode "$COV_MODE" \
+    --cluster-mode "$CLUSTER_MODE" \
+    --threads "$THREADS"
