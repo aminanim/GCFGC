@@ -1,0 +1,12 @@
+THREADS=16
+BINS_DIR="bins"
+BIN_EXT="fa"
+OUTPUT_DIR="checkm2_output"
+ 
+ 
+# ---------------- MAG quality assessment (CheckM2) ----------------
+checkm2 predict \
+    --input "$BINS_DIR" \
+    --output-directory "$OUTPUT_DIR" \
+    --extension "$BIN_EXT" \
+    --threads "$THREADS"
