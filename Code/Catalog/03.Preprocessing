@@ -1,15 +1,27 @@
 THREADS=16
+ 
+# Input
 INPUT_ASSEMBLY="assembly_output/assembly.fasta"
 MIN_CONTIG_LEN=1500
 FILTERED_CONTIGS="filtered_contigs.fa"
  
+# Dereplication
 DEREP_OUTPUT_DIR="derep_output"
+DEREP_PREFIX="${DEREP_OUTPUT_DIR}/derep"
+DEREP_TMP="${DEREP_OUTPUT_DIR}/tmp"
 MIN_SEQ_ID=0.95
 COV=0.85
  
+ 
 # ---------------- Contig length filtering (SeqKit) ----------------
-seqkit seq -j $THREADS -m $MIN_CONTIG_LEN "$INPUT_ASSEMBLY" > "$FILTERED_CONTIGS"
+seqkit seq -j "$THREADS" -m "$MIN_CONTIG_LEN" "$INPUT_ASSEMBLY" > "$FILTERED_CONTIGS"
+ 
  
 # ---------------- Dereplication (MMseqs2) ----------------
-mmseqs easy-linclust "$FILTERED_CONTIGS" "$DEREP_OUTPUT_DIR/derep" "$DEREP_OUTPUT_DIR/tmp" \
-    --min-seq-id $MIN_SEQ_ID -c $COV --cov-mode 1 --threads $THREADS
+mkdir -p "$DEREP_OUTPUT_DIR"
+ 
+mmseqs easy-linclust "$FILTERED_CONTIGS" "$DEREP_PREFIX" "$DEREP_TMP" \
+    --min-seq-id "$MIN_SEQ_ID" \
+    -c "$COV" \
+    --cov-mode 1 \
+    --threads "$THREADS"
