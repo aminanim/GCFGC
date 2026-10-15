@@ -98,9 +98,9 @@ diamond_annotate() {
             -q "$faa" \
             -d "$database" \
             -o "${mag_outdir}/${name}_${output_suffix}.tsv" \
-            --id 80 \
-            --query-cover 80 \
-            --subject-cover 80 \
+            --id 70 \
+            --query-cover 70 \
+            --subject-cover 70 \
             -e 1e-5 \
             --max-target-seqs 1 \
             --very-sensitive \
